@@ -3,18 +3,12 @@ import requests
 import json
 import os.path
 import pandas as pd
-from pandas import json_normalize
 
 
 def jprint(obj):
     # create a formatted string of the Python JSON object
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
-
-
-def initialise_data_folder():
-    if not os.path.exists('data'):
-        os.makedirs('data')
 
 
 # Get all card info from scyfall.com
@@ -43,19 +37,23 @@ def fetch_card_data():
         if exists is True:
             print("JSON file already exists...")
         else:
+            print("Querying all cards api...")
             download_uri = selected_obj["download_uri"]
             cards_response = requests.get(download_uri)
 
             print("Saving Card JSON to file...")
             with open(f"data/default-cards-{selected_id}.json", 'w') as file:
                 json.dump(cards_response.json(), file, indent=4)
-                print("File saved")
+                print("File save complete...")
 
         print("Finished processing default card json")
 
 
 def main():
-    initialise_data_folder()
+    # Create data folder
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
     fetch_card_data()
 
 
