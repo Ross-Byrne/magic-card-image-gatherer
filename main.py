@@ -1,14 +1,30 @@
 import pprint
 import requests
 import json
-import os.path
+import os
 import pandas as pd
+
+data_dir = f"{os.getcwd()}/data"
 
 
 def jprint(obj):
     # create a formatted string of the Python JSON object
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
+
+
+# Removes old versions of downloaded json file
+def clean_data_directory(new_file_name):
+    # scan data directory for files
+    with os.scandir(data_dir) as dirs:
+        for entry in dirs:
+            # remove file if new file
+            if entry.name != f"{new_file_name}.json":
+                print(f"Removing file: {entry.name}...")
+                try:
+                    os.remove(f"{data_dir}/{entry.name}")
+                except OSError as e:  # if failed, report it back to the user
+                    print("Error: %s - %s." % (e.filename, e.strerror))
 
 
 # Get all card info from scyfall.com
@@ -32,19 +48,21 @@ def fetch_card_data():
         file_name = f"default-cards-{selected_id}"
 
         # Check if file already exists
-        exists = os.path.exists(f"data/{file_name}.json")
-
-        if exists is True:
+        if os.path.exists(f"{data_dir}/{file_name}.json") is True:
             print("JSON file already exists...")
         else:
             print("Querying all cards api...")
             download_uri = selected_obj["download_uri"]
             cards_response = requests.get(download_uri)
+            cards_json = cards_response.json()
 
             print("Saving Card JSON to file...")
-            with open(f"data/default-cards-{selected_id}.json", 'w') as file:
-                json.dump(cards_response.json(), file, indent=4)
+            with open(f"{data_dir}/default-cards-{selected_id}.json", 'w') as file:
+                json.dump(cards_json, file, indent=4)
                 print("File save complete...")
+
+        # Cleanup old files
+        clean_data_directory(file_name)
 
         print("Finished processing default card json")
 
