@@ -32,19 +32,6 @@ def clean_data_directory(new_file_name):
                     print("Error: %s - %s." % (e.filename, e.strerror))
 
 
-# Removes old images in dataset folder
-def clean_dataset_directory():
-    # scan data directory for files
-    with os.scandir(dataset_dir) as dirs:
-        # remove all files
-        for entry in dirs:
-            if entry.is_file():
-                try:
-                    os.remove(f"{dataset_dir}/{entry.name}")
-                except OSError as e:  # if failed, report it back to the user
-                    print("Error: %s - %s." % (e.filename, e.strerror))
-
-
 # Look at files in data directory and fine json file
 def get_card_json_from_file():
     json_file_name = None
@@ -127,22 +114,20 @@ def sanitise_card_data(file_path):
 
 # Iterate through card json and download card images
 def download_card_images(sanitised_data):
-    print("Starting to download Card Images...")
-
     # Create dataset directory if it doesn't exist
     if not os.path.exists(dataset_dir):
         os.makedirs(dataset_dir)
-
-    # Remove any existing files in folder
-    clean_dataset_directory()
 
     # download each card image
     for card in tqdm(sanitised_data, desc="Downloading... ", ascii=False, ncols=90):
         card_id = card["id"]
         card_url = card["image_uri"]
         download_path = f"{dataset_dir}/{card_id}.jpg"
-        wget.download(card_url, download_path)
-        time.sleep(0.1)  # rate limit download by 100ms per request
+        if os.path.exists(download_path):
+            time.sleep(0.001)  # give progress bar time to update
+        else:
+            wget.download(card_url, download_path)
+            time.sleep(0.1)  # rate limit download by 100ms per request
     print("Download complete...")
 
 
