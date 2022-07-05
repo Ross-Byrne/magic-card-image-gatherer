@@ -1,10 +1,15 @@
 import pprint
+import time
 import requests
 import json
 import os
+import shutil
+from tqdm import tqdm
+import wget
 import pandas as pd
 
 data_dir = f"{os.getcwd()}/data"
+dataset_dir = f"{data_dir}/magic-the-gathering-cards"
 
 
 def print_json(obj):
@@ -19,10 +24,23 @@ def clean_data_directory(new_file_name):
     with os.scandir(data_dir) as dirs:
         for entry in dirs:
             # remove file if new file
-            if entry.name != f"{new_file_name}.json":
+            if entry.is_file() and entry.name != f"{new_file_name}.json":
                 print(f"Removing file: {entry.name}...")
                 try:
                     os.remove(f"{data_dir}/{entry.name}")
+                except OSError as e:  # if failed, report it back to the user
+                    print("Error: %s - %s." % (e.filename, e.strerror))
+
+
+# Removes old images in dataset folder
+def clean_dataset_directory():
+    # scan data directory for files
+    with os.scandir(dataset_dir) as dirs:
+        # remove all files
+        for entry in dirs:
+            if entry.is_file():
+                try:
+                    os.remove(f"{dataset_dir}/{entry.name}")
                 except OSError as e:  # if failed, report it back to the user
                     print("Error: %s - %s." % (e.filename, e.strerror))
 
@@ -48,7 +66,6 @@ def fetch_card_data():
     bulk_data_json = response.json()
     data = bulk_data_json["data"]
     selected_obj = None
-    cards_json = []
 
     # get all english cards using type: "default_cards"
     for obj in data:
@@ -104,21 +121,35 @@ def sanitise_card_data(file_path):
             # Only add cards with IDs and Image URIs
             if len(sanitised_card["id"]) > 0 and len(sanitised_card["image_uri"]) > 0:
                 data.append(sanitised_card)
+    print(f"Total Processed Cards: {len(data)}")
     return data
 
 
 # Iterate through card json and download card images
 def download_card_images(sanitised_data):
-    print(f"Total Cards: {len(sanitised_data)}")
     print("Starting to download Card Images...")
 
-    # rate limit download by 100ms per request
-    
+    # Create dataset directory if it doesn't exist
+    if not os.path.exists(dataset_dir):
+        os.makedirs(dataset_dir)
+
+    # Remove any existing files in folder
+    clean_dataset_directory()
+
+    # download each card image
+    for card in tqdm(sanitised_data, desc="Downloading... ", ascii=False, ncols=90):
+        card_id = card["id"]
+        card_url = card["image_uri"]
+        download_path = f"{dataset_dir}/{card_id}.jpg"
+        wget.download(card_url, download_path)
+        time.sleep(0.1)  # rate limit download by 100ms per request
+    print("Download complete...")
+
 
 def main():
     # Create data folder
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
 
     json_file_path = fetch_card_data()
     sanitised_data = sanitise_card_data(json_file_path)

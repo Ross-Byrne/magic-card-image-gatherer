@@ -1,3 +1,5 @@
 requests
 ijson
 pandas
+tqdm
+wget
