@@ -27,6 +27,19 @@ def clean_data_directory(new_file_name):
                     print("Error: %s - %s." % (e.filename, e.strerror))
 
 
+# Look at files in data directory and fine json file
+def get_card_json_from_file():
+    json_file_name = None
+
+    # scan data directory for files
+    with os.scandir(data_dir) as dirs:
+        for entry in dirs:
+            # remove file if new file
+            if "default-cards-" in entry.name:
+                json_file_name = entry.name
+    return json_file_name
+
+
 # Get all card info from scyfall.com
 # See: https://scryfall.com/docs/api/bulk-data
 def fetch_card_data():
@@ -67,12 +80,26 @@ def fetch_card_data():
         print("Finished processing default card json")
 
 
+# Iterate through card json and download card images
+def download_card_images(file_name):
+    print("Starting to download Card Images...")
+
+
 def main():
     # Create data folder
     if not os.path.exists('data'):
         os.makedirs('data')
 
     fetch_card_data()
+    print("")
+
+    file_name = get_card_json_from_file()
+    if file_name is None:
+        print("Error finding json file")
+        return
+
+    # Stream json from file and start collecting card images
+    download_card_images(file_name)
 
 
 # Press the green button in the gutter to run the script.
