@@ -7,7 +7,7 @@ import pandas as pd
 data_dir = f"{os.getcwd()}/data"
 
 
-def jprint(obj):
+def print_json(obj):
     # create a formatted string of the Python JSON object
     text = json.dumps(obj, sort_keys=True, indent=4)
     print(text)
@@ -48,6 +48,7 @@ def fetch_card_data():
     bulk_data_json = response.json()
     data = bulk_data_json["data"]
     selected_obj = None
+    cards_json = []
 
     # get all english cards using type: "default_cards"
     for obj in data:
@@ -59,10 +60,11 @@ def fetch_card_data():
     else:
         selected_id = selected_obj['id']
         file_name = f"default-cards-{selected_id}"
+        file_path = f"{data_dir}/{file_name}.json"
 
         # Check if file already exists
-        if os.path.exists(f"{data_dir}/{file_name}.json") is True:
-            print("JSON file already exists...")
+        if os.path.exists(file_path) is True:
+            print("File already exists...")
         else:
             print("Querying all cards api...")
             download_uri = selected_obj["download_uri"]
@@ -77,29 +79,50 @@ def fetch_card_data():
         # Cleanup old files
         clean_data_directory(file_name)
 
-        print("Finished processing default card json")
+        print("Finished processing default card json...")
+        return file_path
+
+
+# Sanitise card json data to remove unused values
+def sanitise_card_data(file_path):
+    cards_json = []
+    print("Loading json from file...")
+    try:
+        with open(file_path) as file:
+            cards_json = json.load(file)
+    except OSError as e:
+        print("Error: %s - %s." % (e.filename, e.strerror))
+
+    print(f"Total Unprocessed Cards: {len(cards_json)}")
+    print("Sanitising json data...")
+    data = []
+
+    for card in cards_json:
+        if "id" in card.keys() and "image_uris" in card.keys():
+            sanitised_card = {"id": card["id"], "image_uri": card["image_uris"]["normal"]}
+
+            # Only add cards with IDs and Image URIs
+            if len(sanitised_card["id"]) > 0 and len(sanitised_card["image_uri"]) > 0:
+                data.append(sanitised_card)
+    return data
 
 
 # Iterate through card json and download card images
-def download_card_images(file_name):
+def download_card_images(sanitised_data):
+    print(f"Total Cards: {len(sanitised_data)}")
     print("Starting to download Card Images...")
 
+    # rate limit download by 100ms per request
+    
 
 def main():
     # Create data folder
     if not os.path.exists('data'):
         os.makedirs('data')
 
-    fetch_card_data()
-    print("")
-
-    file_name = get_card_json_from_file()
-    if file_name is None:
-        print("Error finding json file")
-        return
-
-    # Stream json from file and start collecting card images
-    download_card_images(file_name)
+    json_file_path = fetch_card_data()
+    sanitised_data = sanitise_card_data(json_file_path)
+    download_card_images(sanitised_data)
 
 
 # Press the green button in the gutter to run the script.
