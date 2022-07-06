@@ -123,9 +123,8 @@ def download_card_images(sanitised_data):
         card_id = card["id"]
         card_url = card["image_uri"]
         download_path = f"{dataset_dir}/{card_id}.jpg"
-        if os.path.exists(download_path):
-            time.sleep(0.001)  # give progress bar time to update
-        else:
+
+        if not os.path.exists(download_path):
             wget.download(card_url, download_path)
             time.sleep(0.1)  # rate limit download by 100ms per request
     print("Download complete...")
