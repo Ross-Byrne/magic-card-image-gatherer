@@ -1,21 +1,13 @@
-import pprint
 import time
 import requests
 import json
 import os
-import shutil
+import csv
 from tqdm import tqdm
 import wget
-import pandas as pd
 
 data_dir = f"{os.getcwd()}/data"
 dataset_dir = f"{data_dir}/magic-the-gathering-cards"
-
-
-def print_json(obj):
-    # create a formatted string of the Python JSON object
-    text = json.dumps(obj, sort_keys=True, indent=4)
-    print(text)
 
 
 # Removes old versions of downloaded json file
@@ -32,7 +24,7 @@ def clean_data_directory(new_file_name):
                     print("Error: %s - %s." % (e.filename, e.strerror))
 
 
-# Look at files in data directory and fine json file
+# Look at files in data directory and find json file
 def get_card_json_from_file():
     json_file_name = None
 
@@ -103,7 +95,7 @@ def sanitise_card_data(file_path):
 
     for card in cards_json:
         if "id" in card.keys() and "image_uris" in card.keys():
-            sanitised_card = {"id": card["id"], "image_uri": card["image_uris"]["normal"]}
+            sanitised_card = {"id": card["id"], "name": card["name"], "image_uri": card["image_uris"]["normal"]}
 
             # Only add cards with IDs and Image URIs
             if len(sanitised_card["id"]) > 0 and len(sanitised_card["image_uri"]) > 0:
@@ -112,11 +104,31 @@ def sanitise_card_data(file_path):
     return data
 
 
+def save_card_details_to_csv(data):
+    print("Generating Label CSV...")
+    with open(f"{data_dir}/magic-the-gathering-card-labels.csv", 'w', newline="") as file:
+        csvwriter = csv.writer(file, delimiter=",")
+        # Add csv headers
+        csvwriter.writerow(['id', 'name'])
+
+        for x in data:
+            csvwriter.writerow([x["id"], x["name"]])
+
+
 # Iterate through card json and download card images
 def download_card_images(sanitised_data):
+    existing_card_dict = {}
+
     # Create dataset directory if it doesn't exist
     if not os.path.exists(dataset_dir):
         os.makedirs(dataset_dir)
+
+    # Index list of existing cards
+    with os.scandir(dataset_dir) as dirs:
+        for entry in dirs:
+            split_string = entry.name.split('.')
+            if len(split_string) > 0:
+                existing_card_dict[split_string[0]] = True
 
     # download each card image
     for card in tqdm(sanitised_data, desc="Downloading... ", ascii=False, ncols=90):
@@ -124,7 +136,7 @@ def download_card_images(sanitised_data):
         card_url = card["image_uri"]
         download_path = f"{dataset_dir}/{card_id}.jpg"
 
-        if not os.path.exists(download_path):
+        if card_id not in existing_card_dict:
             wget.download(card_url, download_path)
             time.sleep(0.1)  # rate limit download by 100ms per request
     print("Download complete...")
@@ -137,6 +149,7 @@ def main():
 
     json_file_path = fetch_card_data()
     sanitised_data = sanitise_card_data(json_file_path)
+    save_card_details_to_csv(sanitised_data)
     download_card_images(sanitised_data)
 
 
